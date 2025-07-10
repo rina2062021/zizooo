@@ -1,44 +1,45 @@
-// pages/product/[id].js
-import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../firebase";
+import React, { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useRouter } from 'next/router';
 
-export default function ProductDetail() {
+export default function VendorPage() {
   const router = useRouter();
   const { id } = router.query;
-  const [product, setProduct] = useState(null);
+  const [vendorData, setVendorData] = useState(null);
 
   useEffect(() => {
     if (!id) return;
-    const fetchProduct = async () => {
-      const docRef = doc(db, "products", id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setProduct(docSnap.data());
+
+    async function fetchVendor() {
+      try {
+        const docRef = doc(db, "vendors", id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setVendorData(docSnap.data());
+        } else {
+          console.log("No such document!");
+        }
+      } catch (error) {
+        console.error('Error fetching vendor:', error);
       }
-    };
-    fetchProduct();
+    }
+
+    fetchVendor();
   }, [id]);
 
-  if (!product) return <p>جار التحميل...</p>;
+  if (!vendorData) return <p>Loading...</p>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="p-4">
+      <h1 className="text-3xl font-bold mb-4">{vendorData.name}</h1>
       <img
-        src={product.image || "/placeholder.png"}
-        alt={product.name}
-        className="w-full h-96 object-cover rounded mb-6"
+        src={vendorData.image || '/placeholder.jpg'}
+        alt={vendorData.name}
+        className="w-full max-w-md h-60 object-cover rounded-md mb-4"
       />
-      <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
-      <p className="text-xl text-green-700 font-semibold mb-4">
-        السعر: {product.price} ريال
-      </p>
-      <p className="mb-6">{product.description}</p>
-      <button className="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700">
-        أضف إلى السلة
-      </button>
+      <p className="text-gray-700">{vendorData.description}</p>
     </div>
   );
 }
-

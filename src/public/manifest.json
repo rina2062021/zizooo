@@ -1,0 +1,129 @@
+<!-- في ملف index.html، داخل قسم <head> -->
+<!-- تأكد من وجود هذا الرابط لملف manifest.json -->
+<link rel="manifest" href="/manifest.json">
+<!-- يمكنك إضافة meta tags لأيقونات Apple Touch Icon إذا كنت تستهدف iOS بشكل خاص -->
+<link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Rina">
+
+<!-- تأكد من وجود رابط لملف app.js الخاص بك في نهاية قسم <body> -->
+<!-- <script src="app.js"></script> -->
+```json
+// قم بإنشاء ملف جديد باسم manifest.json في المجلد الرئيسي لمشروعك (نفس مستوى index.html)
+{
+  "name": "Rina App",
+  "short_name": "Rina",
+  "description": "تطبيق Rina لطلب الطعام والسوبر ماركت والصيدليات والأدوات المنزلية في ميلينيانو، إيطاليا.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4CAF50",
+  "icons": [
+    {
+      "src": "/images/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+```javascript
+// في ملف app.js، أضف هذا الكود لتسجيل Service Worker
+// تأكد من أن هذا الكود يتم تنفيذه بعد تحميل الصفحة بالكامل
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('Service Worker registered successfully with scope:', registration.scope);
+      })
+      .catch(error => {
+        console.error('Service Worker registration failed:', error);
+      });
+  });
+}
+
+// قم بإنشاء ملف جديد باسم service-worker.js في المجلد الرئيسي لمشروعك (نفس مستوى index.html)
+// هذا هو الكود الأساسي لـ Service Worker
+const CACHE_NAME = 'rina-cache-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/style.css',
+  '/app.js',
+  '/images/icons/icon-192x192.png', // تأكد من وجود هذه الأيقونات في المسار الصحيح
+  '/images/icons/icon-512x512.png'
+  // أضف هنا جميع الملفات الأخرى التي تريد تخزينها مؤقتاً (مثل صفحات HTML الأخرى، صور، خطوط)
+  // مثال: '/login.html', '/categories.html', '/products.html', etc.
+];
+
+self.addEventListener('install', event => {
+  // يقوم Service Worker بتخزين الموارد الأساسية مؤقتاً عند التثبيت
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
+      .catch(error => {
+        console.error('Failed to open cache or add URLs:', error);
+      })
+  );
+});
+
+self.addEventListener('fetch', event => {
+  // يعترض Service Worker طلبات الشبكة ويقدم الموارد من الذاكرة المؤقتة إذا كانت متاحة
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // إذا كان المورد موجوداً في الذاكرة المؤقتة، قم بإرجاعه
+        if (response) {
+          return response;
+        }
+        // إذا لم يكن موجوداً، قم بطلب المورد من الشبكة
+        return fetch(event.request)
+          .then(response => {
+            // تحقق مما إذا تلقينا استجابة صالحة
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // استنسخ الاستجابة لأنها يمكن استخدامها مرة واحدة فقط
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+
+            return response;
+          })
+          .catch(error => {
+            console.error('Fetch failed:', error);
+            // يمكنك هنا تقديم صفحة "أنت غير متصل بالإنترنت" إذا كان الطلب فشل
+            // مثال: return caches.match('/offline.html');
+          });
+      })
+  );
+});
+
+self.addEventListener('activate', event => {
+  // يقوم Service Worker بتنظيف أي ذاكرات تخزين مؤقت قديمة
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            // حذف أي ذاكرات تخزين مؤقت ليست في القائمة البيضاء
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});

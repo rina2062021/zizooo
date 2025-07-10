@@ -1,0 +1,184 @@
+const fs = require('fs');
+const path = require('path');
+
+const files = {
+  'src/firebase/firebase.js': `import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+`,
+
+  'src/pages/index.jsx': `import React from 'react';
+
+export default function Home() {
+  return (
+    <div className='p-4'>
+      <h1 className='text-2xl font-bold mb-4'>مرحبا بك في تطبيق ZIZO</h1>
+    </div>
+  );
+}
+`,
+
+  'src/pages/vendor/[id].jsx': `import React from 'react';
+import { useRouter } from 'next/router';
+
+export default function VendorPage() {
+  const router = useRouter();
+  const { id } = router.query;
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">تفاصيل المتجر: {id}</h1>
+      {/* هنا يمكنك استدعاء بيانات المتجر بناءً على id */}
+    </div>
+  );
+}
+`,
+
+  'src/pages/dashboard/index.jsx': `import React from 'react';
+
+export default function Dashboard() {
+  return (
+    <div className='p-4'>
+      <h1 className='text-2xl font-bold mb-4'>لوحة التحكم</h1>
+    </div>
+  );
+}
+`,
+
+  'src/components/Navbar.jsx': `import React from 'react';
+
+export default function Navbar() {
+  return (
+    <nav className='bg-blue-600 p-4 text-white'>
+      <h1 className='text-xl font-bold'>ZIZO</h1>
+    </nav>
+  );
+}
+`,
+
+  'src/components/Footer.jsx': `import React from 'react';
+
+export default function Footer() {
+  return (
+    <footer className='bg-gray-800 p-4 text-white text-center'>
+      © 2025 ZIZO. All rights reserved.
+    </footer>
+  );
+}
+`,
+
+  'src/components/VendorCard.jsx': `import React from 'react';
+
+export default function VendorCard({ vendor }) {
+  return (
+    <div className='bg-white rounded-xl shadow p-4'>
+      <img
+        src={vendor.image || '/placeholder.jpg'}
+        alt={vendor.name}
+        className='w-full h-40 object-cover rounded-md'
+      />
+      <h2 className='mt-2 text-xl font-semibold'>{vendor.name}</h2>
+      <p className='text-gray-600'>{vendor.description}</p>
+    </div>
+  );
+}
+`,
+
+  'src/hooks/useAuth.js': `import { useEffect, useState } from 'react';
+import { auth } from '../firebase/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+
+export default function useAuth() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, currentUser => {
+      setUser(currentUser);
+    });
+    return unsubscribe;
+  }, []);
+
+  return user;
+}
+`,
+
+  'src/context/AuthContext.jsx': `import React, { createContext, useContext, useState, useEffect } from 'react';
+import { auth } from '../firebase/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+
+const AuthContext = createContext();
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, currentUser => {
+      setUser(currentUser);
+    });
+    return unsubscribe;
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuthContext() {
+  return useContext(AuthContext);
+}
+`,
+
+  'src/styles/globals.css': `/* global styles */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f9fafb;
+  margin: 0;
+  padding: 0;
+}
+`,
+
+  'src/constants/appConfig.js': `export const APP_NAME = 'ZIZO';
+export const SUPPORTED_LANGUAGES = ['ar', 'en', 'fr', 'es', 'hi', 'uk', 'de', 'sq'];
+`,
+
+  '.env.local': `NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyCJU_WV2UAjFpfuOteRpZ_pjTCZYHUjhHM
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=zizo-18335.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=zizo-18335
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=zizo-18335.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=535876610520
+NEXT_PUBLIC_FIREBASE_APP_ID=1:535876610520:web:a312a6f85ab46334e7aaad
+`,
+};
+
+function createFiles(basePath, files) {
+  for (const [filePath, content] of Object.entries(files)) {
+    const fullPath = path.join(basePath, filePath);
+    const dir = path.dirname(fullPath);
+
+    // إنشاء المجلدات إذا لم تكن موجودة
+    fs.mkdirSync(dir, { recursive: true });
+
+    // كتابة الملف
+    fs.writeFileSync(fullPath, content, 'utf8');
+    console.log(`Created: ${fullPath}`);
+  }
+}
+
+createFiles(process.cwd(), files);
+console.log('All files created successfully!');
